@@ -1,0 +1,39 @@
+# --- Pythonの定番 ---
+__pycache__/
+*.pyc
+
+# --- ログファイル（GitHubには上げなくてOK） ---
+logs/
+faq_log.csv
+faq_log_v2.csv
+
+# --- システムファイル（MacやWindowsが勝手に作るゴミ） ---
+.DS_Store
+Thumbs.db
+
+# --- 仮想環境（もし作っていれば） ---
+venv/
+env/
+.venv/
+
+# --- アーカイブ（古いコードを上げたくない場合） ---
+# ※ 記録として残したいなら、ここはコメントアウト(#)して上げてもOKです
+archive/
+
+# --- 注意点: 容量制限 ---
+# GitHubは1ファイル100MBを超えるとエラーになります。
+# もし pkl ファイルなどが巨大になったら、ここに追加して除外する必要があります。
+# faq_embeddings_v2.pkl
+
+# --- 外に出せないファイル ---
+.streamlit/*
+
+# PDFフォルダ全体を無視
+faq_pdfs/
+faq_pdfs/*
+
+# 個別のPDFファイルも念のため無視
+*.pdf
+
+# CSVファイルも除外
+*.csv
