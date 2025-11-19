@@ -179,7 +179,7 @@ def check_password():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("🔒 社内ログイン")
-        st.markdown(f"**{COMPANY_NAME} 専用システム**", unsafe_allow_html=True)
+        st.markdown(f"**{COMPANY_NAME} 専用サービス**", unsafe_allow_html=True)
         pwd = st.text_input("パスワード", type="password")
         if pwd:
             # パスワード確認 (secrets優先)
@@ -203,14 +203,14 @@ def main():
     inject_custom_css()
     
     with st.sidebar:
-        st.markdown(f"### 🏢 {COMPANY_NAME}")
+        st.markdown(f"### ■ {COMPANY_NAME}")
         if st.button("ログアウト", icon="🚪"): logout()
         st.markdown("---")
 
     st.title("いい生活 FAQ検索")
     st.markdown("質問したい内容を文章で入力すると、関連するマニュアルを探し出します。")
 
-    with st.spinner("システムを起動中... (データの復号・展開)"):
+    with st.spinner("サービスを起動中... (データの復号・展開)"):
         df, model, doc_embeddings = load_data_and_model()
 
     if df is None:
