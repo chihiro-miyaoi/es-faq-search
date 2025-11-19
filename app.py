@@ -249,7 +249,7 @@ def main():
             with st.container():
                 col1, col2 = st.columns([4, 1])
                 with col1:
-                    st.markdown(f"### 📄 {row['タイトル']}")
+                    st.markdown(f"### Ｑ. {row['タイトル']}")
                     st.caption(f"**カテゴリ:** {display_cat} | **更新日:** {row['更新日']}")
                     st.info(str(row['本文(Content)'])[:150] + "...")
                 
