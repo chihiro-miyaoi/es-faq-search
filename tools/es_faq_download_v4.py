@@ -63,7 +63,7 @@ def update_and_save_log_v2(filename, rows, faq_id, status, title, category, upda
 
 def create_driver():
     options = Options()
-    # options.add_argument('--headless=new') # 安定したら有効化
+    options.add_argument('--headless=new') # 安定したら有効化
     options.add_argument('--disable-gpu')
     options.add_argument('--no-sandbox')
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
