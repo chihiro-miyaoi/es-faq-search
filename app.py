@@ -1,41 +1,21 @@
-def main():
-    # ★デバッグ用：持っているキーの一覧を表示（値は見せない）
-    st.write("現在のSecretsキー:", st.secrets.keys()) 
-
-    if not check_password(): return
-    # ...
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
+import io
 import datetime
-
-# --- 暗号化・圧縮対応の追加 ---
-import zipfile
-import shutil
+# --- 暗号化対応 ---
 from cryptography.fernet import Fernet
-
-# --- ログ用（設定が残っていれば使用） ---
+# --- ログ用 ---
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- 設定 ---
 MODEL_NAME = "intfloat/multilingual-e5-small"
 COMPANY_NAME = "生和不動産株式会社"
-
-# データの展開先設定
-# Streamlit Cloudでは /tmp が書き込み可能な一時領域です
-if os.path.exists("/tmp"):
-    TEMP_DIR = "/tmp/faq_data_extracted"
-else:
-    TEMP_DIR = "temp_data_extracted" # ローカル用
-
-DATASET_FILE = os.path.join(TEMP_DIR, "faq_dataset.csv")
-PDF_DIR = os.path.join(TEMP_DIR, "faq_pdfs")
-ENCRYPTED_DIR = "encrypted_data" # GitHub上の暗号化フォルダ
+ENCRYPTED_DIR = "encrypted_assets" # 新しいフォルダ名（個別暗号化用）
 
 # --- ページ設定 ---
 st.set_page_config(
@@ -49,6 +29,76 @@ def get_gcp_creds():
     if "gcp_service_account" in st.secrets:
         return dict(st.secrets["gcp_service_account"])
     return None
+
+# --- 復号ヘルパー関数 ---
+def get_fernet():
+    if "decryption_key" not in st.secrets:
+        st.error("復号キーが設定されていません。")
+        return None
+    return Fernet(st.secrets["decryption_key"])
+
+def decrypt_file_to_bytes(filepath):
+    """暗号化ファイルを読み込んで復号し、バイト列として返す"""
+    if not os.path.exists(filepath):
+        return None
+    try:
+        f = get_fernet()
+        if f is None: return None
+        
+        with open(filepath, "rb") as file:
+            encrypted_data = file.read()
+        return f.decrypt(encrypted_data)
+    except Exception as e:
+        # 復号エラーはログに出すが、アプリは止めない
+        print(f"復号エラー ({filepath}): {e}")
+        return None
+
+# --- データロード (CSVのみ復号) ---
+@st.cache_resource
+def load_data_and_model():
+    # 1. CSVの復号
+    # 個別暗号化されたCSVを探す
+    csv_enc_path = os.path.join(ENCRYPTED_DIR, "faq_dataset.csv.enc")
+    
+    if not os.path.exists(csv_enc_path):
+        st.error(f"データファイルが見つかりません: {csv_enc_path}")
+        return None, None, None
+        
+    csv_bytes = decrypt_file_to_bytes(csv_enc_path)
+    if csv_bytes is None:
+        st.error("CSVの復号に失敗しました。キーが正しいか確認してください。")
+        return None, None, None
+
+    # メモリ上のバイト列からDataFrameを作成
+    try:
+        df = pd.read_csv(io.BytesIO(csv_bytes), encoding='utf-8-sig')
+    except Exception as e:
+        st.error(f"CSV読み込みエラー: {e}")
+        return None, None, None
+    
+    # 2. 検索テキスト作成
+    df['search_text'] = (
+        df['カテゴリ'].fillna('') + " " + 
+        df['タイトル'].fillna('') + " " + 
+        df['タイトル'].fillna('') + " " + 
+        df['本文(Content)'].fillna('')
+    )
+    
+    # 3. AIモデルロード & ベクトル化
+    # 起動時にメモリ上で計算（ファイルキャッシュは使わない）
+    model = SentenceTransformer(MODEL_NAME)
+    docs = df['search_text'].tolist()
+    doc_embeddings = model.encode(["passage: " + str(doc) for doc in docs], show_progress_bar=True)
+    
+    return df, model, doc_embeddings
+
+# --- PDF取得 (オンデマンド復号) ---
+def get_pdf_data(original_filename):
+    """ボタンが押された時に、そのPDFだけを復号して返す"""
+    # 暗号化ファイル名 = 元ファイル名 + .enc
+    # encrypted_assets/pdfs/xxxx.pdf.enc を探す
+    enc_path = os.path.join(ENCRYPTED_DIR, "pdfs", original_filename + ".enc")
+    return decrypt_file_to_bytes(enc_path)
 
 # --- スプレッドシート接続 ---
 def log_to_sheet(query):
@@ -65,87 +115,7 @@ def log_to_sheet(query):
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             sheet.append_row([now, query])
     except Exception:
-        pass # ログ保存エラーはアプリの動作に影響させない
-
-# --- データの復号と展開 ---
-@st.cache_resource
-def decrypt_and_extract_data():
-    # 既に展開済みならスキップして高速化
-    if os.path.exists(DATASET_FILE) and os.path.exists(PDF_DIR):
-        return True
-
-    try:
-        # 1. 分割ファイルを結合
-        encrypted_data = b""
-        if not os.path.exists(ENCRYPTED_DIR):
-            st.error(f"暗号化データフォルダ '{ENCRYPTED_DIR}' が見つかりません。")
-            return False
-
-        parts = sorted([f for f in os.listdir(ENCRYPTED_DIR) if f.startswith("data.enc.")])
-        if not parts:
-            st.error("暗号化データが見つかりません。")
-            return False
-        
-        for part in parts:
-            with open(os.path.join(ENCRYPTED_DIR, part), "rb") as f:
-                encrypted_data += f.read()
-        
-        # 2. 復号
-        if "decryption_key" not in st.secrets:
-            st.error("復号キー(decryption_key)がSecretsに設定されていません。")
-            return False
-            
-        key = st.secrets["decryption_key"]
-        f = Fernet(key)
-        decrypted_data = f.decrypt(encrypted_data)
-        
-        # 3. Zip展開
-        # フォルダをクリーンにする
-        if os.path.exists(TEMP_DIR):
-            shutil.rmtree(TEMP_DIR)
-        os.makedirs(TEMP_DIR)
-            
-        zip_path = os.path.join(TEMP_DIR, "data.zip")
-        with open(zip_path, "wb") as f:
-            f.write(decrypted_data)
-            
-        with zipfile.ZipFile(zip_path, 'r') as z:
-            z.extractall(TEMP_DIR)
-            
-        return True
-    except Exception as e:
-        st.error(f"データ展開エラー: {e}")
-        return False
-
-# --- データロード ---
-@st.cache_resource
-def load_data_and_model():
-    # 復号処理を実行
-    if not decrypt_and_extract_data():
-        return None, None, None
-    
-    # CSV読み込み
-    try:
-        df = pd.read_csv(DATASET_FILE, encoding='utf-8-sig')
-    except Exception as e:
-        st.error(f"CSV読み込みエラー: {e}")
-        return None, None, None
-    
-    # 検索用テキスト作成
-    df['search_text'] = (
-        df['カテゴリ'].fillna('') + " " + 
-        df['タイトル'].fillna('') + " " + 
-        df['タイトル'].fillna('') + " " + 
-        df['本文(Content)'].fillna('')
-    )
-    
-    model = SentenceTransformer(MODEL_NAME)
-    
-    # ベクトル化（メモリ上で計算）
-    docs = df['search_text'].tolist()
-    doc_embeddings = model.encode(["passage: " + str(doc) for doc in docs], show_progress_bar=True)
-            
-    return df, model, doc_embeddings
+        pass # ログ保存エラーは無視
 
 # --- UI系関数 ---
 def inject_custom_css():
@@ -179,7 +149,7 @@ def check_password():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("🔒 社内ログイン")
-        st.markdown(f"**{COMPANY_NAME} 専用サービス**", unsafe_allow_html=True)
+        st.markdown(f"**{COMPANY_NAME} 専用システム**", unsafe_allow_html=True)
         pwd = st.text_input("パスワード", type="password")
         if pwd:
             # パスワード確認 (secrets優先)
@@ -210,12 +180,12 @@ def main():
     st.title("いい生活 FAQ検索")
     st.markdown("質問したい内容を文章で入力すると、関連するマニュアルを探し出します。")
 
-    with st.spinner("サービスを起動中... (データの復号・展開)"):
+    # データロード (起動時のみ実行)
+    with st.spinner("システムを起動中... (軽量モード)"):
         df, model, doc_embeddings = load_data_and_model()
 
     if df is None:
-        st.error("データの準備ができませんでした。")
-        return
+        return # エラーメッセージはload_data内で表示済み
 
     with st.sidebar:
         st.header("絞り込み")
@@ -249,7 +219,7 @@ def main():
             with st.container():
                 col1, col2 = st.columns([4, 1])
                 with col1:
-                    st.markdown(f"### Ｑ. {row['タイトル']}")
+                    st.markdown(f"### 📄 {row['タイトル']}")
                     st.caption(f"**カテゴリ:** {display_cat} | **更新日:** {row['更新日']}")
                     st.info(str(row['本文(Content)'])[:150] + "...")
                 
@@ -257,21 +227,21 @@ def main():
                     st.write("")
                     st.write("")
                     
-                    # PDFボタン (展開済みフォルダから取得)
-                    pdf_path = os.path.join(PDF_DIR, row['元ファイル名'])
-                    
-                    if os.path.exists(pdf_path):
-                        with open(pdf_path, "rb") as f:
-                            pdf_bytes = f.read()
-                        st.download_button(
-                            label="PDFを見る",
-                            data=pdf_bytes,
-                            file_name=row['元ファイル名'],
-                            mime="application/pdf",
-                            key=f"dl_{row['FAQ_ID']}"
-                        )
-                    else:
-                        st.caption("PDFなし")
+                    # ★ここがポイント：ボタンを押した瞬間だけ復号する
+                    # keyにIDを含めることで、ボタンを個別に識別
+                    if st.button("PDF取得", key=f"btn_{row['FAQ_ID']}"):
+                        with st.spinner("PDFを復号中..."):
+                            pdf_bytes = get_pdf_data(row['元ファイル名'])
+                            if pdf_bytes:
+                                st.download_button(
+                                    label="💾 保存/表示",
+                                    data=pdf_bytes,
+                                    file_name=row['元ファイル名'],
+                                    mime="application/pdf",
+                                    key=f"dl_{row['FAQ_ID']}"
+                                )
+                            else:
+                                st.error("ファイルが見つかりません")
             
             st.markdown("---")
             hits += 1
