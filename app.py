@@ -129,7 +129,7 @@ def inject_custom_css():
         }}
         .block-container {{ padding-bottom: 60px; }}
     </style>
-    <div class="footer">© {COMPANY_NAME} - Internal Knowledge Search System</div>
+    <div class="footer">© {COMPANY_NAME}</div>
     """, unsafe_allow_html=True)
 
 def format_category_display(category_text):
@@ -193,7 +193,7 @@ def main():
         roots = sorted(list(set([c.split(' > ')[0] for c in all_cats if c])))
         selected_root = st.selectbox("ツール選択", ["すべて"] + roots)
 
-    query = st.text_input("質問を入力してください", placeholder="例: 画像を加工したい")
+    query = st.text_input("質問を入力してください", placeholder="例: 新しく賃貸借契約を登録したい。")
 
     if query:
         log_to_sheet(query)
