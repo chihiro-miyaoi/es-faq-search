@@ -204,7 +204,7 @@ def main():
     
     with st.sidebar:
         st.markdown(f"### ■ {COMPANY_NAME}")
-        if st.button("ログアウト", icon="🚪"): logout()
+        if st.button("ログアウト"): logout()
         st.markdown("---")
 
     st.title("いい生活 FAQ検索")
