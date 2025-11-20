@@ -41,7 +41,7 @@ ENCRYPTED_DIR = "encrypted_data" # GitHub上の暗号化フォルダ
 st.set_page_config(
     page_title="いい生活 FAQ検索",
     page_icon="🔍",
-    # layout="wide" # コメントアウトのご要望通り
+    # layout="wide"
 )
 
 # --- 認証情報の取得ヘルパー ---
@@ -67,10 +67,10 @@ def log_to_sheet(query):
     except Exception:
         pass # ログ保存エラーはアプリの動作に影響させない
 
-# --- ★追加: データの復号と展開 ---
+# --- データの復号と展開 ---
 @st.cache_resource
 def decrypt_and_extract_data():
-    # 既に展開済みならスキップ（高速化）
+    # 既に展開済みならスキップして高速化
     if os.path.exists(DATASET_FILE) and os.path.exists(PDF_DIR):
         return True
 
@@ -204,7 +204,7 @@ def main():
     
     with st.sidebar:
         st.markdown(f"### ■ {COMPANY_NAME}")
-        if st.button("ログアウト", icon="🚪"): logout()
+        if st.button("ログアウト", icon=""): logout()
         st.markdown("---")
 
     st.title("いい生活 FAQ検索")
