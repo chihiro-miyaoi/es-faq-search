@@ -15,11 +15,10 @@ MODEL_NAME = "intfloat/multilingual-e5-small"
 COMPANY_NAME = "生和不動産株式会社"
 ENCRYPTED_DIR = "encrypted_assets"
 
-# ★ここにマニュアルのリンクを登録してください
+# --- リンク ---
 MANUAL_LINKS = {
-    "基本操作マニュアル": "https://drive.google.com/file/d/xxxxx/view",
-    "困ったときは": "https://drive.google.com/file/d/yyyyy/view",
-    "デスクトップアプリ導入ガイド": "https://drive.google.com/file/d/zzzzz/view"
+    "基本操作マニュアル": "https://drive.google.com/drive/folders/1mi0cHCJIAzKrLNrGrpq5Q4IDtuodBO12?usp=drive_link",
+    "お問い合わせアプリ": "https://essupport.pocketpost.life/",
 }
 
 # --- ページ設定 ---
