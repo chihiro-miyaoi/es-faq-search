@@ -17,7 +17,7 @@ ENCRYPTED_DIR = "encrypted_assets"
 
 # --- リンク ---
 LINKS = {
-    "基本操作マニュアル": "https://drive.google.com/drive/folders/1mi0cHCJIAzKrLNrGrpq5Q4IDtuodBO12?usp=drive_link",
+    "操作マニュアル (Googleドライブ)": "https://drive.google.com/drive/folders/1mi0cHCJIAzKrLNrGrpq5Q4IDtuodBO12?usp=drive_link",
     "お問い合わせアプリ": "https://essupport.pocketpost.life/",
 }
 
@@ -159,14 +159,14 @@ def main():
         
         # 1. マニュアルリンク
         if LINKS:
-            st.markdown("## リンク")
+            st.markdown("## ■ リンク")
             for name, url in LINKS.items():
                 st.link_button(f"{name}", url)
         
         st.markdown("---")
 
         # 2. 絞り込み機能（初期値設定）
-        st.header("絞り込み")
+        st.header("■ 絞り込み")
         all_cats = df['カテゴリ'].dropna().apply(format_category_display).unique()
         roots = sorted(list(set([c.split(' > ')[0] for c in all_cats if c])))
         
