@@ -181,7 +181,7 @@ def main():
         if target_tool in options:
             default_index = options.index(target_tool)
             
-        selected_root = st.selectbox("ツール選択", options, index=default_index)
+        selected_root = st.selectbox(" カテゴリ", options, index=default_index)
 
     # --- メインコンテンツ ---
     query = st.text_input("質問を入力してください", placeholder="例: 新しく賃貸借契約を登録したい, 入出金を一括で消し込みたい など")
