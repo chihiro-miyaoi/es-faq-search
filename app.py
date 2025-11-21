@@ -169,7 +169,7 @@ def main():
 
     # --- 絞り込み機能（初期値設定） ---
     with st.sidebar:
-        st.header("絞り込み")
+        st.header("○ 絞り込み")
         all_cats = df['カテゴリ'].dropna().apply(format_category_display).unique()
         roots = sorted(list(set([c.split(' > ')[0] for c in all_cats if c])))
         
