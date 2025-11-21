@@ -6,16 +6,20 @@ from sklearn.metrics.pairwise import cosine_similarity
 import os
 import io
 import datetime
-# --- 暗号化対応 ---
 from cryptography.fernet import Fernet
-# --- ログ用 ---
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- 設定 ---
 MODEL_NAME = "intfloat/multilingual-e5-small"
 COMPANY_NAME = "生和不動産株式会社"
-ENCRYPTED_DIR = "encrypted_assets" # 新しいフォルダ名（個別暗号化用）
+ENCRYPTED_DIR = "encrypted_assets"
+
+# ★ここにマニュアルのリンクを登録してください
+MANUAL_LINKS = {
+    "基本操作マニュアル": "https://drive.google.com/drive/folders/1mi0cHCJIAzKrLNrGrpq5Q4IDtuodBO12?usp=drive_link",
+    "お問い合わせアプリ": "https://essupport.pocketpost.life/",
+}
 
 # --- ページ設定 ---
 st.set_page_config(
@@ -24,13 +28,7 @@ st.set_page_config(
     # layout="wide"
 )
 
-# --- 認証情報の取得ヘルパー ---
-def get_gcp_creds():
-    if "gcp_service_account" in st.secrets:
-        return dict(st.secrets["gcp_service_account"])
-    return None
-
-# --- 復号ヘルパー関数 ---
+# --- 暗号化キー取得 ---
 def get_fernet():
     if "decryption_key" not in st.secrets:
         st.error("復号キーが設定されていません。")
@@ -38,45 +36,32 @@ def get_fernet():
     return Fernet(st.secrets["decryption_key"])
 
 def decrypt_file_to_bytes(filepath):
-    """暗号化ファイルを読み込んで復号し、バイト列として返す"""
-    if not os.path.exists(filepath):
-        return None
+    if not os.path.exists(filepath): return None
     try:
         f = get_fernet()
         if f is None: return None
-        
         with open(filepath, "rb") as file:
             encrypted_data = file.read()
         return f.decrypt(encrypted_data)
     except Exception as e:
-        # 復号エラーはログに出すが、アプリは止めない
-        print(f"復号エラー ({filepath}): {e}")
+        print(f"復号エラー: {e}")
         return None
 
-# --- データロード (CSVのみ復号) ---
+# --- データロード ---
 @st.cache_resource
 def load_data_and_model():
-    # 1. CSVの復号
-    # 個別暗号化されたCSVを探す
     csv_enc_path = os.path.join(ENCRYPTED_DIR, "faq_dataset.csv.enc")
-    
     if not os.path.exists(csv_enc_path):
-        st.error(f"データファイルが見つかりません: {csv_enc_path}")
+        st.error("データファイルが見つかりません")
         return None, None, None
         
     csv_bytes = decrypt_file_to_bytes(csv_enc_path)
     if csv_bytes is None:
-        st.error("CSVの復号に失敗しました。キーが正しいか確認してください。")
+        st.error("データの復号に失敗しました")
         return None, None, None
 
-    # メモリ上のバイト列からDataFrameを作成
-    try:
-        df = pd.read_csv(io.BytesIO(csv_bytes), encoding='utf-8-sig')
-    except Exception as e:
-        st.error(f"CSV読み込みエラー: {e}")
-        return None, None, None
+    df = pd.read_csv(io.BytesIO(csv_bytes), encoding='utf-8-sig')
     
-    # 2. 検索テキスト作成
     df['search_text'] = (
         df['カテゴリ'].fillna('') + " " + 
         df['タイトル'].fillna('') + " " + 
@@ -84,40 +69,18 @@ def load_data_and_model():
         df['本文(Content)'].fillna('')
     )
     
-    # 3. AIモデルロード & ベクトル化
-    # 起動時にメモリ上で計算（ファイルキャッシュは使わない）
     model = SentenceTransformer(MODEL_NAME)
     docs = df['search_text'].tolist()
     doc_embeddings = model.encode(["passage: " + str(doc) for doc in docs], show_progress_bar=True)
     
     return df, model, doc_embeddings
 
-# --- PDF取得 (オンデマンド復号) ---
+# --- PDF取得 ---
 def get_pdf_data(original_filename):
-    """ボタンが押された時に、そのPDFだけを復号して返す"""
-    # 暗号化ファイル名 = 元ファイル名 + .enc
-    # encrypted_assets/pdfs/xxxx.pdf.enc を探す
     enc_path = os.path.join(ENCRYPTED_DIR, "pdfs", original_filename + ".enc")
     return decrypt_file_to_bytes(enc_path)
 
-# --- スプレッドシート接続 ---
-def log_to_sheet(query):
-    try:
-        creds_dict = get_gcp_creds()
-        if not creds_dict: return
-
-        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
-        
-        if "spreadsheet_name" in st.secrets:
-            sheet = client.open(st.secrets["spreadsheet_name"]).sheet1
-            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            sheet.append_row([now, query])
-    except Exception:
-        pass # ログ保存エラーは無視
-
-# --- UI系関数 ---
+# --- UI・認証系 ---
 def inject_custom_css():
     st.markdown(f"""
     <style>
@@ -128,8 +91,13 @@ def inject_custom_css():
             border-top: 1px solid #ddd; z-index: 999;
         }}
         .block-container {{ padding-bottom: 60px; }}
+        /* サイドバーのリンクボタンを見やすく */
+        .stLinkButton a {{
+            text-decoration: none;
+            font-weight: bold;
+        }}
     </style>
-    <div class="footer">© {COMPANY_NAME}</div>
+    <div class="footer">© 2025 {COMPANY_NAME}</div>
     """, unsafe_allow_html=True)
 
 def format_category_display(category_text):
@@ -141,20 +109,15 @@ def format_category_display(category_text):
     return " > ".join(cleaned)
 
 def check_password():
-    if "password_correct" not in st.session_state:
-        st.session_state["password_correct"] = False
-    if st.session_state["password_correct"]:
-        return True
-        
+    if "password_correct" not in st.session_state: st.session_state["password_correct"] = False
+    if st.session_state["password_correct"]: return True
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("🔒 社内ログイン")
-        st.markdown(f"**{COMPANY_NAME} 専用システム**", unsafe_allow_html=True)
+        st.markdown(f"**{COMPANY_NAME} 専用サービス**", unsafe_allow_html=True)
         pwd = st.text_input("パスワード", type="password")
         if pwd:
-            # パスワード確認 (secrets優先)
-            correct_password = st.secrets.get("app_password", "eseikatsu2025")
-            if pwd == correct_password:
+            if pwd == st.secrets.get("app_password", "eseikatsu2025"):
                 st.session_state["password_correct"] = True
                 st.rerun()
             else:
@@ -166,34 +129,62 @@ def logout():
     st.session_state["password_correct"] = False
     st.rerun()
 
+def log_to_sheet(query):
+    try:
+        if "gcp_service_account" in st.secrets and "spreadsheet_name" in st.secrets:
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(st.secrets["gcp_service_account"]), ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive'])
+            client = gspread.authorize(creds)
+            sheet = client.open(st.secrets["spreadsheet_name"]).sheet1
+            sheet.append_row([datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), query])
+    except: pass
+
 # --- メイン処理 ---
 def main():
     if not check_password(): return
 
     inject_custom_css()
     
+    # --- サイドバー ---
     with st.sidebar:
-        st.markdown(f"### ■ {COMPANY_NAME}")
-        if st.button("ログアウト"): logout()
+        st.markdown(f"### 🏢 {COMPANY_NAME}")
+        
+        # ★マニュアルリンク集 (Streamlit 1.27以降の link_button を使用)
+        if MANUAL_LINKS:
+            st.markdown("##### 📘 操作マニュアル")
+            for name, url in MANUAL_LINKS.items():
+                # ドライブのアイコンっぽく
+                st.link_button(f"📄 {name}", url)
+        
+        st.markdown("---")
+        if st.button("ログアウト", icon="🚪"): logout()
         st.markdown("---")
 
     st.title("いい生活 FAQ検索")
-    st.markdown("質問したい内容を文章で入力すると、関連するマニュアルを探し出します。")
 
-    # データロード (起動時のみ実行)
-    with st.spinner("システムを起動中... (軽量モード)"):
+    # データロード
+    with st.spinner("サービスを起動中..."):
         df, model, doc_embeddings = load_data_and_model()
 
-    if df is None:
-        return # エラーメッセージはload_data内で表示済み
+    if df is None: return
 
+    # --- 絞り込み機能（初期値設定） ---
     with st.sidebar:
         st.header("絞り込み")
         all_cats = df['カテゴリ'].dropna().apply(format_category_display).unique()
         roots = sorted(list(set([c.split(' > ')[0] for c in all_cats if c])))
-        selected_root = st.selectbox("ツール選択", ["すべて"] + roots)
+        
+        options = ["すべて"] + roots
+        
+        # デフォルト値を「いい生活デスクトップアプリ」にする
+        default_index = 0
+        target_tool = "いい生活デスクトップアプリ"
+        if target_tool in options:
+            default_index = options.index(target_tool)
+            
+        selected_root = st.selectbox("ツール選択", options, index=default_index)
 
-    query = st.text_input("質問を入力してください", placeholder="例: 新しく賃貸借契約を登録したい。")
+    # --- メインコンテンツ ---
+    query = st.text_input("質問を入力してください", placeholder="例: 新しく賃貸借契約を登録したい, 入出金を一括で消し込みたい など")
 
     if query:
         log_to_sheet(query)
@@ -213,6 +204,7 @@ def main():
             row = df.iloc[index]
             display_cat = format_category_display(row['カテゴリ'])
             
+            # フィルタリング
             if selected_root != "すべて" and not display_cat.startswith(selected_root):
                 continue
 
@@ -226,9 +218,6 @@ def main():
                 with col2:
                     st.write("")
                     st.write("")
-                    
-                    # ★ここがポイント：ボタンを押した瞬間だけ復号する
-                    # keyにIDを含めることで、ボタンを個別に識別
                     if st.button("PDF取得", key=f"btn_{row['FAQ_ID']}"):
                         with st.spinner("PDFを復号中..."):
                             pdf_bytes = get_pdf_data(row['元ファイル名'])
@@ -241,14 +230,13 @@ def main():
                                     key=f"dl_{row['FAQ_ID']}"
                                 )
                             else:
-                                st.error("ファイルが見つかりません")
+                                st.error("ファイルなし")
             
             st.markdown("---")
             hits += 1
             if hits >= 10: break
         
-        if hits == 0:
-            st.warning("関連するFAQが見つかりませんでした。")
+        if hits == 0: st.warning("関連するFAQが見つかりませんでした。")
 
 if __name__ == "__main__":
     main()
