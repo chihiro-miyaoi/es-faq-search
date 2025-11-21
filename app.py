@@ -188,7 +188,7 @@ def main():
             logout()
 
     # --- メインコンテンツ ---
-    query = st.text_input("質問を入力してください", placeholder="例: 画像を加工したい")
+    query = st.text_input("質問を入力してください", placeholder="例: 新たに賃貸借契約を登録したい, 入出金を一括で消し込みたい")
 
     if query:
         log_to_sheet(query)
