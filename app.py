@@ -161,7 +161,7 @@ def main():
         if LINKS:
             st.markdown("## リンク")
             for name, url in LINKS.items():
-                st.link_button(f"📄 {name}", url)
+                st.link_button(f"{name}", url)
         
         st.markdown("---")
 
