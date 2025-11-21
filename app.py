@@ -117,7 +117,7 @@ def check_password():
         st.markdown(f"**{COMPANY_NAME} 専用サービス**", unsafe_allow_html=True)
         pwd = st.text_input("パスワード", type="password")
         if pwd:
-            if pwd == st.secrets.get("app_password", "eseikatsu2025"):
+            if pwd == st.secrets.get("app_password"):
                 st.session_state["password_correct"] = True
                 st.rerun()
             else:
