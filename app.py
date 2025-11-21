@@ -16,7 +16,7 @@ COMPANY_NAME = "生和不動産株式会社"
 ENCRYPTED_DIR = "encrypted_assets"
 
 # --- リンク ---
-MANUAL_LINKS = {
+LINKS = {
     "基本操作マニュアル": "https://drive.google.com/drive/folders/1mi0cHCJIAzKrLNrGrpq5Q4IDtuodBO12?usp=drive_link",
     "お問い合わせアプリ": "https://essupport.pocketpost.life/",
 }
@@ -155,12 +155,12 @@ def main():
     # --- サイドバー構築 ---
     # すべてのサイドバー要素を一つの `with st.sidebar:` ブロック内にまとめます
     with st.sidebar:
-        st.markdown(f"### 🏢 {COMPANY_NAME}")
+        st.markdown(f"## {COMPANY_NAME}")
         
         # 1. マニュアルリンク
-        if MANUAL_LINKS:
-            st.markdown("##### 📘 操作マニュアル")
-            for name, url in MANUAL_LINKS.items():
+        if LINKS:
+            st.markdown("#### リンク")
+            for name, url in LINKS.items():
                 st.link_button(f"📄 {name}", url)
         
         st.markdown("---")
