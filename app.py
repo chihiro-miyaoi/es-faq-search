@@ -155,11 +155,11 @@ def main():
     # --- サイドバー構築 ---
     # すべてのサイドバー要素を一つの `with st.sidebar:` ブロック内にまとめます
     with st.sidebar:
-        st.markdown(f"## {COMPANY_NAME}")
+        st.markdown(f"# {COMPANY_NAME}")
         
         # 1. マニュアルリンク
         if LINKS:
-            st.markdown("### リンク")
+            st.markdown("## リンク")
             for name, url in LINKS.items():
                 st.link_button(f"📄 {name}", url)
         
