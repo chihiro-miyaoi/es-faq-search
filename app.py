@@ -19,7 +19,6 @@ ENCRYPTED_DIR = "encrypted_assets"
 LINKS = {
     "操作マニュアル (Googleドライブ)": "https://drive.google.com/drive/folders/1mi0cHCJIAzKrLNrGrpq5Q4IDtuodBO12?usp=drive_link",
     "いい生活アプリ移管作業チャット": "https://chat.google.com/room/AAAAcK1ikUo?cls=7",
-    "東大阪収益改善PJチャット": "https://chat.google.com/room/AAQACo32c5A?cls=7",
     "お問い合わせアプリ": "https://essupport.pocketpost.life/",
 }
 
