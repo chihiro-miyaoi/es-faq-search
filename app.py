@@ -146,17 +146,17 @@ def main():
     
     # --- サイドバー ---
     with st.sidebar:
-        st.markdown(f"### 🏢 {COMPANY_NAME}")
+        st.markdown(f"## ■ {COMPANY_NAME}")
         
         # ★マニュアルリンク集 (Streamlit 1.27以降の link_button を使用)
         if MANUAL_LINKS:
-            st.markdown("##### 📘 操作マニュアル")
+            st.markdown("### ○ リンク集")
             for name, url in MANUAL_LINKS.items():
                 # ドライブのアイコンっぽく
                 st.link_button(f"📄 {name}", url)
         
         st.markdown("---")
-        if st.button("ログアウト", icon="🚪"): logout()
+        if st.button("ログアウト"): logout()
         st.markdown("---")
 
     st.title("いい生活 FAQ検索")
