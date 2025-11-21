@@ -97,7 +97,7 @@ def inject_custom_css():
             font-weight: bold;
         }}
     </style>
-    <div class="footer">© {COMPANY_NAME} - Internal Knowledge Search System</div>
+    <div class="footer">© 2025 {COMPANY_NAME}</div>
     """, unsafe_allow_html=True)
 
 def format_category_display(category_text):
@@ -117,7 +117,7 @@ def check_password():
         st.markdown(f"**{COMPANY_NAME} 専用システム**", unsafe_allow_html=True)
         pwd = st.text_input("パスワード", type="password")
         if pwd:
-            if pwd == st.secrets.get("app_password", "eseikatsu2025"):
+            if pwd == st.secrets.get("app_password"):
                 st.session_state["password_correct"] = True
                 st.rerun()
             else:
