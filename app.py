@@ -159,7 +159,7 @@ def main():
         
         # 1. マニュアルリンク
         if LINKS:
-            st.markdown("#### リンク")
+            st.markdown("### リンク")
             for name, url in LINKS.items():
                 st.link_button(f"📄 {name}", url)
         
